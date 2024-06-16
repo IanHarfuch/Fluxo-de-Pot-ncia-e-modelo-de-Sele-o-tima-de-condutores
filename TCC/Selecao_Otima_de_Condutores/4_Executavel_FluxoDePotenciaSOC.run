@@ -1,0 +1,78 @@
+reset;
+
+#--------------------
+# incluir o modelo matematico
+#--------------------
+
+model;
+
+include 4_FluxoDePotenciaSOC_a.mod;
+
+#--------------------
+# dados do sistema
+#--------------------
+
+data;
+
+#include 4_Sistema_69_Barras.dat;
+include 4_Sistema_85_Barras.dat;
+
+
+#--------------------
+# solucionador
+
+option solver cplexamp;
+#option cplex_options "mipdisplay=2";
+param presolve_eps := 6.39e-15;
+
+
+solve FuncaoObjetivo;
+
+param Vpu{Ob};
+param Pperdas{Ol}; # Perda de potencia ativa nas linhas
+param Qperdas{Ol}; # Perda de potencia reativa nas linhas
+
+printf'\n\n';
+printf'|-------------------------------------|\n';
+printf'|  Solucao do Fluxo de potencia para  |\n';
+printf'| Sistemas de distribuicao de energia |\n';
+printf'|-------------------------------------|\n';
+
+for {i in Ob}{
+	let Vpu[i] := Vsqr[i]/Vnom^2;
+}
+
+#--------------------
+
+printf'\n\n|-------------------------------------|\n';
+printf'|              Tensoes                |\n';
+printf'|-----------|-----------|-------------|\n';
+printf'|   Barra   |  V [kV]   |  V [p.u.]   |\n';
+printf'|-----------|-----------|-------------|\n';
+
+for{i in Ob}{
+	printf'|%10d |%10.4f |%12.4f |\n', i, sqrt(Vsqr[i]), Vpu[i];
+}
+printf'|-----------|-----------|-------------|\n';
+
+#--------------------
+# Calcular as perdas nas linhas
+
+for{(i,j) in Ol}{
+	let Pperdas[i,j] := sum{c in Oc}( Rc[c] * Fi[i,j,c]);
+	let Qperdas[i,j] := sum{c in Oc}(Xc[c] * Fi[i,j,c]);
+}
+
+#--------------------
+printf'\n\n|------------------------------------------------------------------------------------|\n';
+printf'|                                 Resultados Linhas                                  |\n';
+printf'|-------|-------|-----------|-----------|------------|--------------|----------------|\n';
+printf'|   i   |   j   |  I [Amp]  |  P [kW]   |  Q [kVar]  | Pperdas [kW] | Qperdas [kVar] |\n';
+printf'|-------|-------|-----------|-----------|------------|--------------|----------------|\n';
+
+for{(i,j) in Ol}{
+	printf'|%6d |%6d |%10.4f |%10.4f |%11.4f |%13.4f |%15.4f|\n', i, j, sqrt(Isqr[i,j]), P[i,j], Q[i,j], Pperdas[i,j], Qperdas[i,j];
+}
+printf'|-------|-------|-----------|-----------|------------|--------------|----------------|------|\n';
+
+printf'\n\n';
